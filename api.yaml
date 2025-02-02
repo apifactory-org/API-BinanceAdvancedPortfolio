@@ -1,0 +1,323 @@
+openapi: 3.0.3
+info:
+  title: API Binance Advanced Portfolio
+  version: "1.0.0"
+  description: >
+    Permite gestionar un portafolio avanzado de criptomonedas utilizando datos históricos y en tiempo real de Binance.
+    Este API orquesta la consulta de órdenes, trades y precio actual para un par de trading, y calcula indicadores
+    del portafolio.
+  contact:
+    name: Miguel Céspedes
+    email: miguelcespedes@outlook.com
+    url: https://github.com/apifactory-org/API-Binance-Advanced-Portfolio
+servers:
+  - url: http://localhost:3000
+tags:
+  - name: Order
+    description: Operaciones para consultar órdenes, trades e indicadores del portafolio.
+paths:
+  /orders:
+    get:
+      tags:
+        - Order
+      summary: Recupera órdenes, trades e indicadores del portafolio para un par de trading.
+      description: |
+        Orquesta la consulta de datos a Binance para el par de trading especificado mediante el parámetro "symbol".  
+        
+        **Flujo de operación:**
+        
+        1. **Historial de Órdenes:** Se consulta el endpoint `/api/v3/allOrders` para obtener el historial de órdenes.  
+        2. **Historial de Trades:** Se consulta el endpoint `/api/v3/myTrades` para obtener el historial de trades.  
+        3. **Precio Actual:** Se consulta el endpoint `/api/v3/ticker/price` para obtener el precio actual del par.
+        4. **Cálculo del Portafolio:** Con los datos de trades se calculan:
+           - **totalPurchased:** Suma de las cantidades efectivas compradas, ajustadas por comisión.  
+           - **totalSold:** Suma de las cantidades efectivas vendidas, ajustadas por comisión.  
+           - **netBalance:** Balance neto = totalPurchased - totalSold.  
+           - **weightedAveragePurchasePrice:** Precio promedio ponderado de compra.  
+           - **currentPrice:** Precio actual del par.  
+           - **currentPositionValue:** Valor actual de la posición (netBalance * currentPrice).  
+           - **unrealizedPnL:** Ganancia o pérdida no realizada = (currentPrice - weightedAveragePurchasePrice) * netBalance.  
+           - **percentageReturn:** Retorno porcentual = ((currentPrice / weightedAveragePurchasePrice) - 1) * 100.
+        
+        **Estructura de la respuesta:**
+        
+        | Campo                             | Tipo    | Descripción                                                                                           | Ejemplo                         |
+        |-----------------------------------|---------|-------------------------------------------------------------------------------------------------------|---------------------------------|
+        | pair                              | string  | Par de trading consultado.                                                                            | "RUNEUSDT"                      |
+        | orders.total                      | integer | Número total de órdenes obtenidas.                                                                    | 5                               |
+        | orders.data                       | array   | Arreglo de órdenes según Binance. Cada objeto contiene los campos originales de Binance.             | Ver esquema Order               |
+        | trades.total                      | integer | Número total de trades obtenidos.                                                                     | 12                              |
+        | trades.data                       | array   | Arreglo de trades según Binance. Cada objeto contiene los campos originales de Binance.              | Ver esquema Trade               |
+        | portfolio.totalPurchased          | number  | Suma de las cantidades efectivas compradas (ajustada por comisión).                                    | 1198.8                          |
+        | portfolio.totalSold               | number  | Suma de las cantidades efectivas vendidas (ajustada por comisión).                                     | 999                             |
+        | portfolio.netBalance              | number  | Balance neto = totalPurchased - totalSold.                                                          | 199.8                           |
+        | portfolio.weightedAveragePurchasePrice | number  | Precio promedio ponderado de compra.                                                                  | 1.059123206539873               |
+        | portfolio.currentPrice            | number  | Precio actual del par.                                                                                | 1.35                            |
+        | portfolio.currentPositionValue    | number  | Valor actual de la posición (netBalance * currentPrice).                                             | 269.73                          |
+        | portfolio.unrealizedPnL           | number  | Ganancia o pérdida no realizada.                                                                      | 59.79                           |
+        | portfolio.percentageReturn        | number  | Retorno porcentual de la posición.                                                                    | 27.27                           |
+      operationId: listOrders
+      parameters:
+        - $ref: '#/components/parameters/symbolParam'
+      responses:
+        '200':
+          $ref: '#/components/responses/OrdersResponse'
+        '400':
+          $ref: '#/components/responses/BadRequestResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerErrorResponse'
+
+components:
+  parameters:
+    symbolParam:
+      name: symbol
+      in: query
+      description: 'Símbolo del par de trading (ej.: "RUNEUSDT").'
+      required: true
+      schema:
+        type: string
+    assetParam:
+      name: asset
+      in: query
+      description: 'Símbolo del activo (ej.: "RUNE").'
+      required: true
+      schema:
+        type: string
+  responses:
+    OrdersResponse:
+      description: Respuesta exitosa que contiene órdenes, trades e indicadores del portafolio.
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              pair:
+                type: string
+                description: Par de trading consultado.
+                example: "RUNEUSDT"
+              orders:
+                type: object
+                description: Datos del historial de órdenes.
+                properties:
+                  total:
+                    type: integer
+                    description: Número total de órdenes.
+                    example: 5
+                  data:
+                    type: array
+                    description: Lista de órdenes tal como las proporciona Binance.
+                    items:
+                      $ref: '#/components/schemas/Order'
+              trades:
+                type: object
+                description: Datos del historial de trades.
+                properties:
+                  total:
+                    type: integer
+                    description: Número total de trades.
+                    example: 12
+                  data:
+                    type: array
+                    description: Lista de trades tal como los proporciona Binance.
+                    items:
+                      $ref: '#/components/schemas/Trade'
+              portfolio:
+                type: object
+                description: Indicadores del portafolio calculados a partir de los trades y precio actual.
+                properties:
+                  totalPurchased:
+                    type: number
+                    description: Suma de las cantidades efectivas compradas (ajustada por comisión).
+                    example: 1198.8
+                  totalSold:
+                    type: number
+                    description: Suma de las cantidades efectivas vendidas (ajustada por comisión).
+                    example: 999
+                  netBalance:
+                    type: number
+                    description: Balance neto = totalPurchased - totalSold.
+                    example: 199.8
+                  weightedAveragePurchasePrice:
+                    type: number
+                    description: Precio promedio ponderado de compra.
+                    example: 1.059123206539873
+                  currentPrice:
+                    type: number
+                    description: Precio actual del par.
+                    example: 1.35
+                  currentPositionValue:
+                    type: number
+                    description: Valor actual de la posición (netBalance * currentPrice).
+                    example: 269.73
+                  unrealizedPnL:
+                    type: number
+                    description: Ganancia o pérdida no realizada.
+                    example: 59.79
+                  percentageReturn:
+                    type: number
+                    description: Retorno porcentual de la posición.
+                    example: 27.27
+    BalanceResponse:
+      description: Respuesta exitosa con el balance real del activo.
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              asset:
+                type: string
+                description: Activo consultado.
+                example: "RUNE"
+              freeBalance:
+                type: number
+                description: Balance libre disponible.
+                example: 199.8
+              lockedBalance:
+                type: number
+                description: Balance bloqueado.
+                example: 0
+              totalBalance:
+                type: number
+                description: Suma del balance libre y bloqueado.
+                example: 199.8
+    BadRequestResponse:
+      description: Solicitud incorrecta, faltan parámetros obligatorios.
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+                example: "Missing 'symbol' query parameter. Example: /orders?symbol=BTCUSDT"
+    InternalServerErrorResponse:
+      description: Error interno del servidor.
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+                example: "Error retrieving data for symbol RUNEUSDT"
+  schemas:
+    Order:
+      type: object
+      description: Objeto de orden tal como lo proporciona Binance.
+      properties:
+        symbol:
+          type: string
+          description: Par de trading.
+          example: "RUNEUSDT"
+        orderId:
+          type: integer
+          description: Identificador único de la orden.
+          example: 2428730547
+        clientOrderId:
+          type: string
+          description: Identificador asignado por el cliente.
+          example: "web_08d5e4a4d31c4842bb46264c51413a10"
+        price:
+          type: string
+          description: Precio establecido en la orden.
+          example: "0.00000000"
+        origQty:
+          type: string
+          description: Cantidad original solicitada (moneda base).
+          example: "100.00000000"
+        executedQty:
+          type: string
+          description: Cantidad efectivamente ejecutada.
+          example: "100.00000000"
+        cummulativeQuoteQty:
+          type: string
+          description: Total acumulado en la moneda cotizada.
+          example: "134.00000000"
+        status:
+          type: string
+          description: Estado de la orden.
+          example: "FILLED"
+        timeInForce:
+          type: string
+          description: Política de vigencia de la orden.
+          example: "GTC"
+        type:
+          type: string
+          description: Tipo de orden.
+          example: "MARKET"
+        side:
+          type: string
+          description: Lado de la orden ("BUY" o "SELL").
+          example: "BUY"
+        stopPrice:
+          type: string
+          description: Precio de stop en órdenes STOP, si aplica.
+          example: "0.00000000"
+        icebergQty:
+          type: string
+          description: Cantidad iceberg, si aplica.
+          example: "0.00000000"
+        time:
+          type: integer
+          description: Timestamp de creación (milisegundos desde Unix epoch).
+          example: 1738512194736
+        updateTime:
+          type: integer
+          description: Timestamp de la última actualización.
+          example: 1738512194736
+        isWorking:
+          type: boolean
+          description: Indica si la orden sigue activa.
+          example: true
+        workingTime:
+          type: integer
+          description: Timestamp en que la orden inició su ejecución.
+          example: 1738512194736
+        origQuoteOrderQty:
+          type: string
+          description: Cantidad original en la moneda cotizada, si aplica.
+          example: "0.00000000"
+        selfTradePreventionMode:
+          type: string
+          description: Modo de prevención de auto-trading.
+          example: "EXPIRE_MAKER"
+    Trade:
+      type: object
+      description: Objeto de trade tal como lo proporciona Binance.
+      properties:
+        symbol:
+          type: string
+          description: Par de trading.
+          example: "RUNEUSDT"
+        id:
+          type: integer
+          description: Identificador único del trade.
+          example: 174239434
+        orderId:
+          type: integer
+          description: Identificador de la orden asociada.
+          example: 2417097462
+        price:
+          type: string
+          description: Precio del trade.
+          example: "1.00000000"
+        qty:
+          type: string
+          description: Cantidad operada.
+          example: "1000.00000000"
+        commission:
+          type: string
+          description: Comisión cobrada.
+          example: "1.00000000"
+        commissionAsset:
+          type: string
+          description: Activo en el que se cobra la comisión.
+          example: "RUNE"
+        isBuyer:
+          type: boolean
+          description: Indica si el trade fue de compra (true) o venta (false).
+          example: true
+        time:
+          type: integer
+          description: Timestamp del trade (milisegundos desde Unix epoch).
+          example: 1738458103401

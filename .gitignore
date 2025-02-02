@@ -1,0 +1,30 @@
+# Node modules
+node_modules/
+
+# Archivos de lock de dependencias
+package-lock.json
+yarn.lock
+
+# Archivos de entorno (no se deben subir a repositorios públicos)
+#.env
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Directorios de cobertura de pruebas
+coverage/
+
+# Archivos temporales
+tmp/
+temp/
+
+# Editor de código (VSCode)
+.vscode/
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
