@@ -9,7 +9,7 @@ info:
   contact:
     name: Miguel Céspedes
     email: miguelcespedes@outlook.com
-    url: https://github.com/apifactory-org/API-Binance-Advanced-Portfolio
+    url: https://github.com/apifactory-org/API-BinanceAdvancedPortfolio
 servers:
   - url: http://localhost:3000
 tags:
